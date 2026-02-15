@@ -12,15 +12,15 @@
     </div>
     <div class="card-body">
       <div class="row g-2">
-        <div class="col-12 col-md-4">
+        <div class="col-12 col-md-3">
           <label class="form-label">Invoice Number</label>
           <input class="form-control" type="text" name="invoice_number" value="{{ invoice.invoice_number if invoice else generated_invoice_number }}" required />
         </div>
-        <div class="col-12 col-md-4">
+        <div class="col-12 col-md-3">
           <label class="form-label">Invoice Date</label>
           <input class="form-control" type="date" name="invoice_date" value="{{ invoice.invoice_date if invoice else '' }}" required />
         </div>
-        <div class="col-12 col-md-4">
+        <div class="col-12 col-md-3">
           <label class="form-label">Customer</label>
           <select class="form-select" id="customerSelect" name="customer_id">
             <option value="">Select customer</option>
@@ -39,6 +39,15 @@
             >
               {{ customer.customer_name }}
             </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label">Currency</label>
+          <select class="form-select" name="currency_code" required>
+            {% set selected_currency = invoice.currency_code if invoice and invoice.currency_code else None %}
+            {% for c in currencies %}
+            <option value="{{ c.code }}" {% if selected_currency == c.code %}selected{% endif %}>{{ c.code }} - {{ c.name }}</option>
             {% endfor %}
           </select>
         </div>

@@ -5,7 +5,7 @@ import uuid
 from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 
-from flask import Flask, redirect, render_template, request, url_for, send_file
+from flask import Flask, redirect, render_template, request, url_for, send_file, session
 from flask_login import (
     LoginManager,
     UserMixin,
@@ -215,10 +215,15 @@ def _generate_expense_number(db):
 
 def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
+    from datetime import timedelta
     app.config.from_mapping(
         SECRET_KEY="dev",
         DATABASE=os.path.join(app.instance_path, "invoicing.sqlite"),
+        PERMANENT_SESSION_LIFETIME=timedelta(minutes=30),
     )
+    @app.before_request
+    def make_session_permanent():
+        session.permanent = True
 
     if test_config is None:
         app.config.from_pyfile("config.py", silent=True)
@@ -510,6 +515,13 @@ def create_app(test_config=None):
         return redirect(url_for("settings_page", status="restore-ok"))
 
     @app.route("/")
+    def index():
+        if not current_user.is_authenticated:
+            return redirect(url_for("login"))
+        return redirect(url_for("dashboard"))
+
+    @app.route("/dashboard")
+    @login_required
     def dashboard():
         db = get_db()
         ensure_invoices_tables()
@@ -1590,12 +1602,20 @@ def create_app(test_config=None):
                 """
             ).fetchall()
 
+        currencies = db.execute(
+            """
+            SELECT code, name
+            FROM payment_currencies
+            ORDER BY code ASC
+            """
+        ).fetchall()
         return render_template(
             "invoices.html",
             page_title="Invoices",
             active_menu="invoices",
             invoices=invoices,
             payment_methods=payment_methods,
+            currencies=currencies,
             search_query=search_query,
         )
 
@@ -1695,15 +1715,26 @@ def create_app(test_config=None):
             """
         ).fetchall()
 
+        # Get default currency code
+        currency_code = _get_default_currency_code(db)
+        invoice = type('InvoiceObj', (), {'currency_code': currency_code})()
+        currencies = db.execute(
+            """
+            SELECT code, name
+            FROM payment_currencies
+            ORDER BY code ASC
+            """
+        ).fetchall()
         return render_template(
             "invoice_form.html",
             page_title="Add Invoice",
             active_menu="invoices",
             form_action=url_for("add_invoice"),
-            invoice=None,
+            invoice=invoice,
             invoice_items=[],
             customers=customers,
             items_catalog=items,
+            currencies=currencies,
             generated_invoice_number=_generate_invoice_number(db),
         )
 
@@ -1735,15 +1766,16 @@ def create_app(test_config=None):
             except ValueError:
                 parsed_customer_id = None
 
+        currency_code = request.form.get("currency_code", "").strip().upper() or _get_default_currency_code(db)
         db.execute(
             """
             INSERT INTO invoices (
                 invoice_number, invoice_date, customer_id,
                 customer_name, customer_tax_number, registration_name,
                 phone_number, address, website, country, address_2,
-                subtotal, vat_total, total
+                subtotal, vat_total, total, currency_code
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?)
             """,
             (
                 invoice_number,
@@ -1757,6 +1789,7 @@ def create_app(test_config=None):
                 website,
                 country,
                 address_2,
+                currency_code,
             ),
         )
         invoice_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
@@ -1874,6 +1907,13 @@ def create_app(test_config=None):
             """
         ).fetchall()
 
+        currencies = db.execute(
+            """
+            SELECT code, name
+            FROM payment_currencies
+            ORDER BY code ASC
+            """
+        ).fetchall()
         return render_template(
             "invoice_form.html",
             page_title="Edit Invoice",
@@ -1883,6 +1923,7 @@ def create_app(test_config=None):
             invoice_items=invoice_items,
             customers=customers,
             items_catalog=items,
+            currencies=currencies,
             generated_invoice_number=invoice["invoice_number"],
         )
 
@@ -1921,12 +1962,14 @@ def create_app(test_config=None):
         country = request.form.get("country", "").strip() or None
         address_2 = request.form.get("address_2", "").strip() or None
 
+        currency_code = request.form.get("currency_code", "").strip().upper() or _get_default_currency_code(db)
         db.execute(
             """
             UPDATE invoices
             SET invoice_number = ?, invoice_date = ?, customer_id = ?,
                 customer_name = ?, customer_tax_number = ?, registration_name = ?,
-                phone_number = ?, address = ?, website = ?, country = ?, address_2 = ?
+                phone_number = ?, address = ?, website = ?, country = ?, address_2 = ?,
+                currency_code = ?
             WHERE id = ?
             """,
             (
@@ -1941,6 +1984,7 @@ def create_app(test_config=None):
                 website,
                 country,
                 address_2,
+                currency_code,
                 invoice_id,
             ),
         )
@@ -2130,12 +2174,20 @@ def create_app(test_config=None):
                 """
             ).fetchall()
 
+        currencies = db.execute(
+            """
+            SELECT code, name
+            FROM payment_currencies
+            ORDER BY code ASC
+            """
+        ).fetchall()
         return render_template(
             "purchases.html",
             page_title="Purcheases",
             active_menu="Purcheases",
             purchases=purchases,
             payment_methods=payment_methods,
+            currencies=currencies,
             search_query=search_query,
         )
 
@@ -2188,7 +2240,7 @@ def create_app(test_config=None):
         if amount > outstanding:
             amount = outstanding
 
-        currency_code = _get_default_currency_code(db)
+        currency_code = request.form.get("currency_code") or _get_default_currency_code(db)
         transaction_notes = notes or f"Purchase payment for {purchase['purchase_number']}"
         db.execute(
             """
@@ -2238,6 +2290,13 @@ def create_app(test_config=None):
             """
         ).fetchall()
 
+        currencies = db.execute(
+            """
+            SELECT code, name
+            FROM payment_currencies
+            ORDER BY code ASC
+            """
+        ).fetchall()
         return render_template(
             "purchase_form.html",
             page_title="Add Purchase Invoice",
@@ -2247,6 +2306,7 @@ def create_app(test_config=None):
             purchase_items=[],
             vendors=vendors,
             items_catalog=items,
+            currencies=currencies,
             generated_purchase_number=_generate_purchase_number(db),
         )
 
@@ -2417,6 +2477,13 @@ def create_app(test_config=None):
             """
         ).fetchall()
 
+        currencies = db.execute(
+            """
+            SELECT code, name
+            FROM payment_currencies
+            ORDER BY code ASC
+            """
+        ).fetchall()
         return render_template(
             "purchase_form.html",
             page_title="Edit Purchase Invoice",
@@ -2426,6 +2493,7 @@ def create_app(test_config=None):
             purchase_items=purchase_items,
             vendors=vendors,
             items_catalog=items,
+            currencies=currencies,
             generated_purchase_number=purchase["purchase_number"],
         )
 
@@ -2795,12 +2863,20 @@ def create_app(test_config=None):
                 """
             ).fetchall()
 
+        currencies = db.execute(
+            """
+            SELECT code, name
+            FROM payment_currencies
+            ORDER BY code ASC
+            """
+        ).fetchall()
         return render_template(
             "expenses.html",
             page_title="Expenses",
             active_menu="Expenses",
             expenses=expenses,
             payment_methods=payment_methods,
+            currencies=currencies,
             search_query=search_query,
         )
 
@@ -2850,7 +2926,7 @@ def create_app(test_config=None):
         )
 
         expense_id = insert_result.lastrowid
-        currency_code = _get_default_currency_code(db)
+        currency_code = request.form.get("currency_code", "").strip().upper() or _get_default_currency_code(db)
         transaction_notes = notes or f"Expense payment for {title}"
         db.execute(
             """
@@ -2950,7 +3026,7 @@ def create_app(test_config=None):
         )
 
         if updated_transaction.rowcount == 0:
-            currency_code = _get_default_currency_code(db)
+            currency_code = request.form.get("currency_code") or _get_default_currency_code(db)
             db.execute(
                 """
                 INSERT INTO payment_transactions (

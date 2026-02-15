@@ -92,6 +92,14 @@
               <label class="form-label">Amount</label>
               <input class="form-control" type="number" step="0.01" min="0.01" name="amount" id="pay_purchase_amount" required />
             </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">Currency</label>
+              <select class="form-select" name="currency_code" required>
+                {% for c in currencies %}
+                <option value="{{ c.code }}">{{ c.code }} - {{ c.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
             <div class="col-12">
               <label class="form-label">Payment Method</label>
               <select class="form-select" name="payment_method_id" required>

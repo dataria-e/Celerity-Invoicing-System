@@ -12,15 +12,15 @@
     </div>
     <div class="card-body">
       <div class="row g-2">
-        <div class="col-12 col-md-4">
+        <div class="col-12 col-md-3">
           <label class="form-label">Purchase Number</label>
           <input class="form-control" type="text" name="purchase_number" value="{{ purchase.purchase_number if purchase else generated_purchase_number }}" required />
         </div>
-        <div class="col-12 col-md-4">
+        <div class="col-12 col-md-3">
           <label class="form-label">Purchase Date</label>
           <input class="form-control" type="date" name="purchase_date" value="{{ purchase.purchase_date if purchase else '' }}" required />
         </div>
-        <div class="col-12 col-md-4">
+        <div class="col-12 col-md-3">
           <label class="form-label">Vendor</label>
           <select class="form-select" id="vendorSelect" name="vendor_id">
             <option value="">Select vendor</option>
@@ -39,6 +39,14 @@
             >
               {{ vendor.vendor_name }}
             </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label">Currency</label>
+          <select class="form-select" name="currency_code" required>
+            {% for c in currencies %}
+            <option value="{{ c.code }}">{{ c.code }} - {{ c.name }}</option>
             {% endfor %}
           </select>
         </div>
