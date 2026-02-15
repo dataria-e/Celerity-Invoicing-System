@@ -177,9 +177,10 @@ def ensure_invoices_tables():
           website TEXT,
           country TEXT,
           address_2 TEXT,
-          subtotal REAL NOT NULL DEFAULT 0,
+                    subtotal REAL NOT NULL DEFAULT 0,
           vat_total REAL NOT NULL DEFAULT 0,
           total REAL NOT NULL DEFAULT 0,
+                    currency_code TEXT,
           created_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
         """
@@ -224,6 +225,7 @@ def ensure_purchase_invoices_tables():
                     subtotal REAL NOT NULL DEFAULT 0,
                     vat_total REAL NOT NULL DEFAULT 0,
                     total REAL NOT NULL DEFAULT 0,
+                    currency_code TEXT,
                     created_at TEXT DEFAULT CURRENT_TIMESTAMP
                 )
                 """
@@ -259,6 +261,7 @@ def ensure_expenses_table():
                     category TEXT,
                     payment_method_id INTEGER,
                     amount REAL NOT NULL DEFAULT 0,
+                    currency_code TEXT,
                     notes TEXT,
                     created_at TEXT DEFAULT CURRENT_TIMESTAMP
                 )
@@ -269,6 +272,8 @@ def ensure_expenses_table():
         column_names = {column[1] for column in columns}
         if "payment_method_id" not in column_names:
             db.execute("ALTER TABLE expenses ADD COLUMN payment_method_id INTEGER")
+        if "currency_code" not in column_names:
+            db.execute("ALTER TABLE expenses ADD COLUMN currency_code TEXT")
 
         db.commit()
 
