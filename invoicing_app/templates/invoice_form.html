@@ -1,0 +1,315 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<form method="post" action="{{ form_action }}" id="invoiceForm">
+  <div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span>{{ page_title }}</span>
+      <div class="d-flex gap-2">
+        <a href="{{ url_for('invoices_page') }}" class="btn btn-sm">Back</a>
+        <button type="submit" class="btn btn-sm btn-primary">Save Invoice</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="row g-2">
+        <div class="col-12 col-md-4">
+          <label class="form-label">Invoice Number</label>
+          <input class="form-control" type="text" name="invoice_number" value="{{ invoice.invoice_number if invoice else generated_invoice_number }}" required />
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label">Invoice Date</label>
+          <input class="form-control" type="date" name="invoice_date" value="{{ invoice.invoice_date if invoice else '' }}" required />
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label">Customer</label>
+          <select class="form-select" id="customerSelect" name="customer_id">
+            <option value="">Select customer</option>
+            {% for customer in customers %}
+            <option
+              value="{{ customer.id }}"
+              data-name="{{ customer.customer_name or '' }}"
+              data-tax="{{ customer.customer_tax_number or '' }}"
+              data-registration="{{ customer.registration_name or '' }}"
+              data-phone="{{ customer.phone_number or '' }}"
+              data-address="{{ customer.address or '' }}"
+              data-website="{{ customer.website or '' }}"
+              data-country="{{ customer.country or '' }}"
+              data-address2="{{ customer.address_2 or '' }}"
+              {% if invoice and invoice.customer_id == customer.id %}selected{% endif %}
+            >
+              {{ customer.customer_name }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="row g-2 mt-2">
+        <div class="col-12 col-md-4">
+          <label class="form-label">Customer Name</label>
+          <input class="form-control" id="customer_name" type="text" name="customer_name" value="{{ invoice.customer_name if invoice else '' }}" />
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label">Tax Number</label>
+          <input class="form-control" id="customer_tax_number" type="text" name="customer_tax_number" value="{{ invoice.customer_tax_number if invoice else '' }}" />
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label">Registration Name</label>
+          <input class="form-control" id="registration_name" type="text" name="registration_name" value="{{ invoice.registration_name if invoice else '' }}" />
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label">Phone</label>
+          <input class="form-control" id="phone_number" type="text" name="phone_number" value="{{ invoice.phone_number if invoice else '' }}" />
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label">Website</label>
+          <input class="form-control" id="website" type="text" name="website" value="{{ invoice.website if invoice else '' }}" />
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label">Country</label>
+          <input class="form-control" id="country" type="text" name="country" value="{{ invoice.country if invoice else '' }}" />
+        </div>
+        <div class="col-12 col-md-6">
+          <label class="form-label">Address</label>
+          <textarea class="form-control" id="address" name="address" rows="2">{{ invoice.address if invoice else '' }}</textarea>
+        </div>
+        <div class="col-12 col-md-6">
+          <label class="form-label">Address 2</label>
+          <textarea class="form-control" id="address_2" name="address_2" rows="2">{{ invoice.address_2 if invoice else '' }}</textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span>Invoice Items</span>
+      <button type="button" class="btn btn-sm btn-primary" id="addItemRowBtn">Add Row</button>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-vcenter card-table" id="invoiceItemsTable">
+        <thead>
+          <tr>
+            <th style="min-width: 220px;">Item</th>
+            <th style="min-width: 180px;">Name</th>
+            <th style="width: 100px;">Qty</th>
+            <th style="width: 100px;">Unit</th>
+            <th style="width: 120px;">Price</th>
+            <th style="width: 120px;">VAT %</th>
+            <th style="width: 130px;">Line Total</th>
+            <th style="width: 70px;"></th>
+          </tr>
+        </thead>
+        <tbody id="invoiceItemsBody">
+          {% if invoice_items and invoice_items|length > 0 %}
+            {% for line in invoice_items %}
+            <tr class="invoice-item-row">
+              <td>
+                <select class="form-select form-select-sm item-select">
+                  <option value="">Custom</option>
+                  {% for item in items_catalog %}
+                  <option
+                    value="{{ item.id }}"
+                    data-name="{{ item.name }}"
+                    data-unit="{{ item.unit or '1' }}"
+                    data-price="{{ item.price if item.price is not none else 0 }}"
+                    data-vat="{{ item.vat_amount if item.vat_amount is not none else 0 }}"
+                    {% if line.item_id == item.id %}selected{% endif %}
+                  >
+                    {{ item.name }}
+                  </option>
+                  {% endfor %}
+                </select>
+                <input type="hidden" name="item_id[]" class="item-id" value="{{ line.item_id or '' }}" />
+              </td>
+              <td><input type="text" name="item_name[]" class="form-control form-control-sm item-name" value="{{ line.item_name }}" required /></td>
+              <td><input type="number" name="quantity[]" class="form-control form-control-sm quantity" step="0.01" min="0" value="{{ line.quantity }}" /></td>
+              <td><input type="text" name="unit[]" class="form-control form-control-sm unit" value="{{ line.unit or '1' }}" /></td>
+              <td><input type="number" name="price[]" class="form-control form-control-sm price" step="0.01" min="0" value="{{ line.price }}" /></td>
+              <td><input type="number" name="vat_amount[]" class="form-control form-control-sm vat" step="0.01" min="0" value="{{ line.vat_amount }}" /></td>
+              <td><input type="text" class="form-control form-control-sm line-total" value="{{ '%.2f'|format(line.line_total) }}" readonly /></td>
+              <td><button type="button" class="btn btn-sm btn-danger remove-row">X</button></td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr class="invoice-item-row">
+              <td>
+                <select class="form-select form-select-sm item-select">
+                  <option value="">Custom</option>
+                  {% for item in items_catalog %}
+                  <option
+                    value="{{ item.id }}"
+                    data-name="{{ item.name }}"
+                    data-unit="{{ item.unit or '1' }}"
+                    data-price="{{ item.price if item.price is not none else 0 }}"
+                    data-vat="{{ item.vat_amount if item.vat_amount is not none else 0 }}"
+                  >
+                    {{ item.name }}
+                  </option>
+                  {% endfor %}
+                </select>
+                <input type="hidden" name="item_id[]" class="item-id" value="" />
+              </td>
+              <td><input type="text" name="item_name[]" class="form-control form-control-sm item-name" required /></td>
+              <td><input type="number" name="quantity[]" class="form-control form-control-sm quantity" step="0.01" min="0" value="1" /></td>
+              <td><input type="text" name="unit[]" class="form-control form-control-sm unit" value="1" /></td>
+              <td><input type="number" name="price[]" class="form-control form-control-sm price" step="0.01" min="0" value="0" /></td>
+              <td><input type="number" name="vat_amount[]" class="form-control form-control-sm vat" step="0.01" min="0" value="0" /></td>
+              <td><input type="text" class="form-control form-control-sm line-total" value="0.00" readonly /></td>
+              <td><button type="button" class="btn btn-sm btn-danger remove-row">X</button></td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card-body">
+      <div class="row justify-content-end">
+        <div class="col-12 col-md-4">
+          <div class="d-flex justify-content-between"><span>Subtotal</span><strong id="subtotalValue">0.00</strong></div>
+          <div class="d-flex justify-content-between"><span>VAT Total</span><strong id="vatTotalValue">0.00</strong></div>
+          <div class="d-flex justify-content-between border-top pt-2 mt-2"><span>Total</span><strong id="totalValue">0.00</strong></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+
+<script>
+  const customerSelect = document.getElementById('customerSelect');
+  const itemsBody = document.getElementById('invoiceItemsBody');
+  const addItemRowBtn = document.getElementById('addItemRowBtn');
+
+  function setCustomerFieldsFromSelection() {
+    const option = customerSelect.options[customerSelect.selectedIndex];
+    if (!option || !option.value) return;
+
+    document.getElementById('customer_name').value = option.dataset.name || '';
+    document.getElementById('customer_tax_number').value = option.dataset.tax || '';
+    document.getElementById('registration_name').value = option.dataset.registration || '';
+    document.getElementById('phone_number').value = option.dataset.phone || '';
+    document.getElementById('address').value = option.dataset.address || '';
+    document.getElementById('website').value = option.dataset.website || '';
+    document.getElementById('country').value = option.dataset.country || '';
+    document.getElementById('address_2').value = option.dataset.address2 || '';
+  }
+
+  function updateLineTotal(row) {
+    const qty = parseFloat(row.querySelector('.quantity').value || '0');
+    const price = parseFloat(row.querySelector('.price').value || '0');
+    const vatPercent = parseFloat(row.querySelector('.vat').value || '0');
+    const vatValue = (qty * price) * (vatPercent / 100);
+    const total = (qty * price) + vatValue;
+    row.querySelector('.line-total').value = total.toFixed(2);
+  }
+
+  function updateTotals() {
+    let subtotal = 0;
+    let vatTotal = 0;
+
+    document.querySelectorAll('#invoiceItemsBody tr.invoice-item-row').forEach((row) => {
+      const qty = parseFloat(row.querySelector('.quantity').value || '0');
+      const price = parseFloat(row.querySelector('.price').value || '0');
+      const vatPercent = parseFloat(row.querySelector('.vat').value || '0');
+      const vatValue = (qty * price) * (vatPercent / 100);
+      subtotal += qty * price;
+      vatTotal += vatValue;
+      updateLineTotal(row);
+    });
+
+    const total = subtotal + vatTotal;
+    document.getElementById('subtotalValue').textContent = subtotal.toFixed(2);
+    document.getElementById('vatTotalValue').textContent = vatTotal.toFixed(2);
+    document.getElementById('totalValue').textContent = total.toFixed(2);
+  }
+
+  function bindRowEvents(row) {
+    const itemSelect = row.querySelector('.item-select');
+    const itemIdInput = row.querySelector('.item-id');
+    const itemNameInput = row.querySelector('.item-name');
+    const qtyInput = row.querySelector('.quantity');
+    const unitInput = row.querySelector('.unit');
+    const priceInput = row.querySelector('.price');
+    const vatInput = row.querySelector('.vat');
+    const removeBtn = row.querySelector('.remove-row');
+
+    itemSelect.addEventListener('change', () => {
+      const selected = itemSelect.options[itemSelect.selectedIndex];
+      itemIdInput.value = selected && selected.value ? selected.value : '';
+
+      if (selected && selected.value) {
+        itemNameInput.value = selected.dataset.name || '';
+        if (!qtyInput.value) qtyInput.value = '1';
+        unitInput.value = selected.dataset.unit || '1';
+        priceInput.value = selected.dataset.price || '0';
+        vatInput.value = selected.dataset.vat || '0';
+      } else {
+        if (!qtyInput.value) qtyInput.value = '1';
+        if (!unitInput.value) unitInput.value = '1';
+        if (!vatInput.value) vatInput.value = '0';
+      }
+      updateTotals();
+    });
+
+    [qtyInput, unitInput, priceInput, vatInput, itemNameInput].forEach((input) => {
+      input.addEventListener('input', updateTotals);
+    });
+
+    removeBtn.addEventListener('click', () => {
+      const rows = document.querySelectorAll('#invoiceItemsBody tr.invoice-item-row');
+      if (rows.length === 1) {
+        row.querySelector('.item-select').value = '';
+        row.querySelector('.item-id').value = '';
+        row.querySelector('.item-name').value = '';
+        row.querySelector('.quantity').value = '1';
+        row.querySelector('.unit').value = '1';
+        row.querySelector('.price').value = '0';
+        row.querySelector('.vat').value = '0';
+        updateTotals();
+        return;
+      }
+      row.remove();
+      updateTotals();
+    });
+  }
+
+  function createNewRow() {
+    const firstRow = document.querySelector('#invoiceItemsBody tr.invoice-item-row');
+    const newRow = firstRow.cloneNode(true);
+
+    newRow.querySelector('.item-select').value = '';
+    newRow.querySelector('.item-id').value = '';
+    newRow.querySelector('.item-name').value = '';
+    newRow.querySelector('.quantity').value = '1';
+    newRow.querySelector('.unit').value = '1';
+    newRow.querySelector('.price').value = '0';
+    newRow.querySelector('.vat').value = '0';
+    newRow.querySelector('.line-total').value = '0.00';
+
+    newRow.querySelectorAll('input, select').forEach((element) => {
+      const cloned = element.cloneNode(true);
+      element.replaceWith(cloned);
+    });
+
+    newRow.querySelectorAll('button').forEach((element) => {
+      const cloned = element.cloneNode(true);
+      element.replaceWith(cloned);
+    });
+
+    bindRowEvents(newRow);
+    itemsBody.appendChild(newRow);
+    updateTotals();
+  }
+
+  if (customerSelect) {
+    customerSelect.addEventListener('change', setCustomerFieldsFromSelection);
+  }
+
+  if (addItemRowBtn) {
+    addItemRowBtn.addEventListener('click', createNewRow);
+  }
+
+  document.querySelectorAll('#invoiceItemsBody tr.invoice-item-row').forEach((row) => bindRowEvents(row));
+  updateTotals();
+</script>
+{% endblock %}

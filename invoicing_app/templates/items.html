@@ -1,0 +1,290 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header d-flex align-items-center justify-content-between gap-2 flex-wrap">
+    <div class="d-flex gap-2">
+      <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addItemModal">
+        Add Item
+      </button>
+      <button type="button" class="btn btn-sm" id="editItemButton" disabled>
+        Edit Item
+      </button>
+      <button type="button" class="btn btn-sm btn-danger" id="deleteItemButton" disabled>
+        Delete Item
+      </button>
+    </div>
+
+    <form id="itemsSearchForm" method="get" action="{{ url_for('items_page') }}" class="d-flex" style="max-width: 280px; width: 100%;">
+      <div class="input-group input-group-sm">
+        <input
+          id="itemsSearchInput"
+          type="text"
+          class="form-control"
+          name="q"
+          placeholder="Search items..."
+          value="{{ search_query or '' }}"
+        />
+        <button type="submit" class="btn btn-sm">Search</button>
+      </div>
+    </form>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-vcenter card-table" id="itemsTable">
+      <thead>
+        <tr class="item-row">
+          <th style="width: 48px;"></th>
+          <th>Item Number</th>
+          <th>Name</th>
+          <th>Price</th>
+          <th>VAT Amount</th>
+          <th>Unit</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in items %}
+        <tr>
+          <td>
+            <input
+              type="radio"
+              name="selected_item"
+              value="{{ item.id }}"
+              data-id="{{ item.id }}"
+              data-item-number="{{ item.item_number }}"
+              data-name="{{ item.name }}"
+              data-price="{{ '%.2f'|format(item.price) if item.price is not none else '' }}"
+              data-vat-amount="{{ '%.2f'|format(item.vat_amount) if item.vat_amount is not none else '' }}"
+              data-unit="{{ item.unit or '' }}"
+              data-description="{{ item.description or '' }}"
+            />
+          </td>
+          <td>{{ item.item_number }}</td>
+          <td>{{ item.name }}</td>
+          <td>{{ '%.2f'|format(item.price) if item.price is not none else '-' }}</td>
+          <td>{{ '%.2f'|format(item.vat_amount) if item.vat_amount is not none else '-' }}</td>
+          <td>{{ item.unit or '-' }}</td>
+          <td>{{ item.description or '-' }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="7" class="text-muted text-center py-4">No items yet.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="modal modal-blur fade" id="addItemModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <form method="post" action="{{ url_for('add_item') }}">
+        <div class="modal-header">
+          <h5 class="modal-title">Add Item</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Name</label>
+            <input class="form-control" type="text" name="name" required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Price</label>
+            <input class="form-control" type="number" step="0.01" min="0" name="price" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">VAT Amount</label>
+            <input class="form-control" type="number" step="0.01" min="0" name="vat_amount" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Unit</label>
+            <input class="form-control" type="text" name="unit" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Description</label>
+            <textarea class="form-control" name="description" rows="3"></textarea>
+          </div>
+          <div class="text-muted small">Item Number is generated automatically.</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-sm btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal modal-blur fade" id="editItemModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <form method="post" action="{{ url_for('edit_item') }}">
+        <input type="hidden" name="item_id" id="edit_item_id" />
+        <div class="modal-header">
+          <h5 class="modal-title">Edit Item</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Item Number</label>
+            <input class="form-control" type="text" id="edit_item_number" disabled />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Name</label>
+            <input class="form-control" type="text" name="name" id="edit_name" required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Price</label>
+            <input class="form-control" type="number" step="0.01" min="0" name="price" id="edit_price" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">VAT Amount</label>
+            <input class="form-control" type="number" step="0.01" min="0" name="vat_amount" id="edit_vat_amount" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Unit</label>
+            <input class="form-control" type="text" name="unit" id="edit_unit" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Description</label>
+            <textarea class="form-control" name="description" id="edit_description" rows="3"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-sm btn-primary">Update</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<form method="post" action="{{ url_for('delete_item') }}" id="deleteItemForm" class="d-none">
+  <input type="hidden" name="item_id" id="delete_item_id" />
+</form>
+
+<script>
+  const editBtn = document.getElementById('editItemButton');
+  const deleteBtn = document.getElementById('deleteItemButton');
+  const radios = document.querySelectorAll('input[name="selected_item"]');
+  const itemRows = document.querySelectorAll('#itemsTable tbody tr.item-row');
+  const searchInput = document.getElementById('itemsSearchInput');
+  const searchForm = document.getElementById('itemsSearchForm');
+  const tableBody = document.querySelector('#itemsTable tbody');
+
+  function getSelectedItem() {
+    return document.querySelector('input[name="selected_item"]:checked');
+  }
+
+  function applyTableFilter() {
+    if (!searchInput || !tableBody) return;
+
+    const query = searchInput.value.trim().toLowerCase();
+    const dataRows = Array.from(tableBody.querySelectorAll('tr')).filter(
+      (row) => row.querySelector('input[name="selected_item"]')
+    );
+
+    let visibleCount = 0;
+    dataRows.forEach((row) => {
+      const rowText = row.textContent.toLowerCase();
+      const visible = !query || rowText.includes(query);
+      row.style.display = visible ? '' : 'none';
+      if (visible) visibleCount += 1;
+    });
+
+    let emptyRow = document.getElementById('items-filter-empty-row');
+    if (visibleCount === 0 && dataRows.length > 0) {
+      if (!emptyRow) {
+        emptyRow = document.createElement('tr');
+        emptyRow.id = 'items-filter-empty-row';
+        emptyRow.innerHTML = '<td colspan="7" class="text-muted text-center py-4">No matching items.</td>';
+        tableBody.appendChild(emptyRow);
+      }
+    } else if (emptyRow) {
+      emptyRow.remove();
+    }
+
+    if (getSelectedItem() && getSelectedItem().closest('tr').style.display === 'none') {
+      getSelectedItem().checked = false;
+    }
+    updateActionsState();
+  }
+
+  function updateActionsState() {
+    const selected = getSelectedItem();
+    const hasSelection = !!selected;
+    editBtn.disabled = !hasSelection;
+    deleteBtn.disabled = !hasSelection;
+  }
+
+  radios.forEach((radio) => {
+    radio.addEventListener('change', updateActionsState);
+  });
+
+  itemRows.forEach((row) => {
+    row.addEventListener('click', (event) => {
+      const radio = row.querySelector('input[name="selected_item"]');
+      if (!radio) return;
+
+      if (event.target.tagName.toLowerCase() !== 'input') {
+        radio.checked = true;
+      }
+      updateActionsState();
+    });
+
+    row.addEventListener('dblclick', () => {
+      const radio = row.querySelector('input[name="selected_item"]');
+      if (!radio) return;
+      radio.checked = true;
+      updateActionsState();
+      openEditItemModal();
+    });
+  });
+
+  if (searchInput) {
+    searchInput.addEventListener('input', applyTableFilter);
+  }
+
+  if (searchForm) {
+    searchForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      applyTableFilter();
+    });
+  }
+
+  function openEditItemModal() {
+    const selected = getSelectedItem();
+    if (!selected) {
+      alert('Select an item first.');
+      return;
+    }
+
+    document.getElementById('edit_item_id').value = selected.dataset.id;
+    document.getElementById('edit_item_number').value = selected.dataset.itemNumber;
+    document.getElementById('edit_name').value = selected.dataset.name;
+    document.getElementById('edit_price').value = selected.dataset.price;
+    document.getElementById('edit_vat_amount').value = selected.dataset.vatAmount;
+    document.getElementById('edit_unit').value = selected.dataset.unit;
+    document.getElementById('edit_description').value = selected.dataset.description;
+
+    const modal = new bootstrap.Modal(document.getElementById('editItemModal'));
+    modal.show();
+  }
+
+  editBtn.addEventListener('click', openEditItemModal);
+
+  deleteBtn.addEventListener('click', () => {
+    const selected = getSelectedItem();
+    if (!selected) return;
+
+    showHtmlConfirm('Delete selected item?', () => {
+      document.getElementById('delete_item_id').value = selected.dataset.id;
+      document.getElementById('deleteItemForm').submit();
+    });
+  });
+
+  updateActionsState();
+  applyTableFilter();
+</script>
+{% endblock %}

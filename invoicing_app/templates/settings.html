@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header">Database Backup & Restore</div>
+  <div class="card-body">
+    {% if status == 'restore-ok' %}
+    <div class="alert alert-success py-2">Database restored successfully. A timestamped safety backup was created before restore.</div>
+    {% elif status == 'restore-no-file' %}
+    <div class="alert alert-danger py-2">Please choose a backup file first.</div>
+    {% elif status == 'backup-missing' %}
+    <div class="alert alert-danger py-2">Database file was not found for backup.</div>
+    {% endif %}
+
+    <div class="mb-4">
+      <h4 class="h5 mb-2">Backup</h4>
+      <p class="text-muted mb-3">Download a full backup of your current SQLite database.</p>
+      <a href="{{ url_for('backup_database') }}" class="btn btn-sm btn-primary">Download Backup</a>
+    </div>
+
+    <hr class="my-4" />
+
+    <div>
+      <h4 class="h5 mb-2">Restore</h4>
+      <p class="text-muted mb-3">Upload a backup file to replace the current database. A pre-restore safety backup is created automatically.</p>
+      <form method="post" action="{{ url_for('restore_database') }}" enctype="multipart/form-data">
+        <div class="mb-3">
+          <label class="form-label">Backup File</label>
+          <input type="file" class="form-control" name="backup_file" accept=".sqlite,.db,.bak" required />
+        </div>
+        <button type="submit" class="btn btn-sm btn-danger" onclick="return showHtmlConfirmSubmit(event, 'Restore will replace current database. Continue?')">Restore Database</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

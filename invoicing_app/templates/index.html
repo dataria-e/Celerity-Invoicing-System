@@ -1,0 +1,204 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+  .topbar {
+    margin-left: 0 !important;
+    border-left: 0 !important;
+  }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <div>
+    <div class="fw-semibold">Overview - {{ period_label }}</div>
+    <div class="text-muted small">Track finance, operations, and cash flow in one view.</div>
+  </div>
+  <div class="btn-group btn-group-sm" role="group" aria-label="Period filter">
+    <a href="{{ url_for('dashboard', period='month') }}" class="btn {% if period == 'month' %}btn-primary{% else %}btn-outline-primary{% endif %}">This Month</a>
+    <a href="{{ url_for('dashboard', period='quarter') }}" class="btn {% if period == 'quarter' %}btn-primary{% else %}btn-outline-primary{% endif %}">This Quarter</a>
+    <a href="{{ url_for('dashboard', period='year') }}" class="btn {% if period == 'year' %}btn-primary{% else %}btn-outline-primary{% endif %}">This Year</a>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-xl-2">
+    <div class="card"><div class="card-body"><div class="text-muted small">Sales</div><div class="h3 mb-0">{{ '%.2f'|format(sales_total) }}</div><div class="small {{ sales_trend.css }} mt-1">{{ sales_trend.icon }} {{ sales_trend.label }}</div></div></div>
+  </div>
+  <div class="col-6 col-xl-2">
+    <div class="card"><div class="card-body"><div class="text-muted small">Purchases</div><div class="h3 mb-0">{{ '%.2f'|format(purchase_total) }}</div><div class="small {{ purchases_trend.css }} mt-1">{{ purchases_trend.icon }} {{ purchases_trend.label }}</div></div></div>
+  </div>
+  <div class="col-6 col-xl-2">
+    <div class="card"><div class="card-body"><div class="text-muted small">Expenses</div><div class="h3 mb-0">{{ '%.2f'|format(expense_total) }}</div><div class="small {{ expenses_trend.css }} mt-1">{{ expenses_trend.icon }} {{ expenses_trend.label }}</div></div></div>
+  </div>
+  <div class="col-6 col-xl-2">
+    <div class="card"><div class="card-body"><div class="text-muted small">Net Profit</div><div class="h3 mb-0 {% if net_profit >= 0 %}text-success{% else %}text-danger{% endif %}">{{ '%.2f'|format(net_profit) }}</div><div class="small {{ net_profit_trend.css }} mt-1">{{ net_profit_trend.icon }} {{ net_profit_trend.label }}</div></div></div>
+  </div>
+  <div class="col-6 col-xl-2">
+    <div class="card"><div class="card-body"><div class="text-muted small">Receivables</div><div class="h3 mb-0">{{ '%.2f'|format(receivables) }}</div><div class="small {{ receivables_trend.css }} mt-1">{{ receivables_trend.icon }} {{ receivables_trend.label }}</div></div></div>
+  </div>
+  <div class="col-6 col-xl-2">
+    <div class="card"><div class="card-body"><div class="text-muted small">Payables</div><div class="h3 mb-0">{{ '%.2f'|format(payables) }}</div><div class="small {{ payables_trend.css }} mt-1">{{ payables_trend.icon }} {{ payables_trend.label }}</div></div></div>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-xl-2">
+    <div class="card"><div class="card-body"><div class="text-muted small">Received VAT</div><div class="h4 mb-0">{{ '%.2f'|format(received_vat) }}</div></div></div>
+  </div>
+  <div class="col-6 col-xl-2">
+    <div class="card"><div class="card-body"><div class="text-muted small">Paid VAT</div><div class="h4 mb-0">{{ '%.2f'|format(paid_vat) }}</div></div></div>
+  </div>
+  <div class="col-6 col-xl-2">
+    <div class="card"><div class="card-body"><div class="text-muted small">VAT Balance</div><div class="h4 mb-0 {% if vat_balance >= 0 %}text-danger{% else %}text-success{% endif %}">{{ '%.2f'|format(vat_balance) }}</div></div></div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="card"><div class="card-body"><div class="text-muted small">Payments In</div><div class="h4 mb-0 text-success">{{ '%.2f'|format(payments_in) }}</div></div></div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="card"><div class="card-body"><div class="text-muted small">Payments Out</div><div class="h4 mb-0 text-danger">{{ '%.2f'|format(payments_out) }}</div></div></div>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">Monthly Financial Trend (Last 12 Months)</div>
+      <div class="card-body">
+        <canvas id="dashboardTrendChart" height="95"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-12 col-xl-6">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between"><span>Recent Invoices</span><a href="{{ url_for('invoices_page') }}" class="btn btn-sm">Open</a></div>
+      <div class="table-responsive">
+        <table class="table table-vcenter card-table">
+          <thead><tr><th>Number</th><th>Date</th><th>Customer</th><th>Total</th><th>Status</th></tr></thead>
+          <tbody>
+            {% for invoice in recent_invoices %}
+            <tr>
+              <td>{{ invoice.invoice_number }}</td>
+              <td>{{ invoice.invoice_date }}</td>
+              <td>{{ invoice.customer_name or '-' }}</td>
+              <td>{{ '%.2f'|format(invoice.total) }}</td>
+              <td>
+                {% if invoice.outstanding_amount <= 0 %}
+                  <span class="badge bg-success-lt">Paid</span>
+                {% elif invoice.paid_amount > 0 %}
+                  <span class="badge bg-warning-lt">Partial</span>
+                {% else %}
+                  <span class="badge bg-secondary-lt">Unpaid</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="text-muted text-center py-4">No invoices.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-xl-6">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between"><span>Recent Purchases</span><a href="{{ url_for('purchases_page') }}" class="btn btn-sm">Open</a></div>
+      <div class="table-responsive">
+        <table class="table table-vcenter card-table">
+          <thead><tr><th>Number</th><th>Date</th><th>Vendor</th><th>Total</th><th>Status</th></tr></thead>
+          <tbody>
+            {% for purchase in recent_purchases %}
+            <tr>
+              <td>{{ purchase.purchase_number }}</td>
+              <td>{{ purchase.purchase_date }}</td>
+              <td>{{ purchase.vendor_name or '-' }}</td>
+              <td>{{ '%.2f'|format(purchase.total) }}</td>
+              <td>
+                {% if purchase.outstanding_amount <= 0 %}
+                  <span class="badge bg-success-lt">Paid</span>
+                {% elif purchase.paid_amount > 0 %}
+                  <span class="badge bg-warning-lt">Partial</span>
+                {% else %}
+                  <span class="badge bg-secondary-lt">Unpaid</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="text-muted text-center py-4">No purchases.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-12 col-xl-7">
+    <div class="card h-100">
+      <div class="card-header">Quick Actions</div>
+      <div class="card-body d-flex flex-wrap gap-2">
+        <a href="{{ url_for('new_invoice_page') }}" class="btn btn-sm btn-primary">New Invoice</a>
+        <a href="{{ url_for('new_purchase_page') }}" class="btn btn-sm btn-primary">New Purchase</a>
+        <a href="{{ url_for('expenses_page') }}" class="btn btn-sm">Add Expense</a>
+        <a href="{{ url_for('payments_page') }}" class="btn btn-sm">Record Payment</a>
+        <a href="{{ url_for('report_page') }}" class="btn btn-sm">Open Report</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-xl-5">
+    <div class="card h-100">
+      <div class="card-header">Low / Negative Stock</div>
+      <div class="table-responsive">
+        <table class="table table-vcenter card-table">
+          <thead><tr><th>Item</th><th>Available</th><th>Unit</th></tr></thead>
+          <tbody>
+            {% for row in stock_alerts %}
+            <tr>
+              <td>{{ row.item_name }}</td>
+              <td class="{% if row.available < 0 %}text-danger{% elif row.available <= 2 %}text-warning{% endif %}">{{ '%.2f'|format(row.available) }}</td>
+              <td>{{ row.unit }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="3" class="text-muted text-center py-4">No stock risk items.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const chartLabels = {{ chart_labels|safe }};
+  const chartSales = {{ chart_sales|safe }};
+  const chartPurchases = {{ chart_purchases|safe }};
+  const chartExpenses = {{ chart_expenses|safe }};
+  const chartNet = {{ chart_net|safe }};
+
+  new Chart(document.getElementById('dashboardTrendChart'), {
+    type: 'line',
+    data: {
+      labels: chartLabels,
+      datasets: [
+        { label: 'Sales', data: chartSales, borderColor: '#206bc4', backgroundColor: 'rgba(32,107,196,0.12)', tension: 0.25 },
+        { label: 'Purchases', data: chartPurchases, borderColor: '#f59f00', backgroundColor: 'rgba(245,159,0,0.12)', tension: 0.25 },
+        { label: 'Expenses', data: chartExpenses, borderColor: '#d63939', backgroundColor: 'rgba(214,57,57,0.12)', tension: 0.25 },
+        { label: 'Net', data: chartNet, borderColor: '#2fb344', backgroundColor: 'rgba(47,179,68,0.12)', tension: 0.25 }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      scales: {
+        y: { beginAtZero: true }
+      }
+    }
+  });
+</script>
+{% endblock %}

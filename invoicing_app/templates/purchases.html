@@ -1,0 +1,231 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header d-flex align-items-center justify-content-between gap-2 flex-wrap">
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('new_purchase_page') }}" class="btn btn-sm btn-primary">Add Purchase</a>
+      <a href="{{ url_for('assets_page') }}" class="btn btn-sm">Assets</a>
+      <button type="button" class="btn btn-sm btn-success" id="payPurchaseButton" disabled>Record Payment</button>
+      <button type="button" class="btn btn-sm" id="editPurchaseButton" disabled>Edit Purchase</button>
+      <button type="button" class="btn btn-sm btn-danger" id="deletePurchaseButton" disabled>Delete Purchase</button>
+    </div>
+
+    <form id="purchasesSearchForm" method="get" action="{{ url_for('purchases_page') }}" class="d-flex" style="max-width: 280px; width: 100%;">
+      <div class="input-group input-group-sm">
+        <input id="purchasesSearchInput" type="text" class="form-control" name="q" placeholder="Search purchases..." value="{{ search_query or '' }}" />
+        <button type="submit" class="btn btn-sm">Search</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-vcenter card-table" id="purchasesTable">
+      <thead>
+        <tr>
+          <th style="width: 48px;"></th>
+          <th>Purchase Number</th>
+          <th>Purchase Date</th>
+          <th>Vendor</th>
+          <th>Total</th>
+          <th>Paid</th>
+          <th>Outstanding</th>
+          <th>Status</th>
+          <th>View</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for purchase in purchases %}
+        <tr class="purchase-row">
+          <td><input type="radio" name="selected_purchase" value="{{ purchase.id }}" data-id="{{ purchase.id }}" data-purchase-number="{{ purchase.purchase_number }}" data-outstanding="{{ '%.2f'|format(purchase.outstanding_amount) }}" /></td>
+          <td>{{ purchase.purchase_number }}</td>
+          <td>{{ purchase.purchase_date }}</td>
+          <td>{{ purchase.vendor_name or '-' }}</td>
+          <td>{{ '%.2f'|format(purchase.total) }}</td>
+          <td>{{ '%.2f'|format(purchase.paid_amount) }}</td>
+          <td>{{ '%.2f'|format(purchase.outstanding_amount) }}</td>
+          <td>
+            {% if purchase.outstanding_amount <= 0 %}
+              <span class="badge bg-success-lt">Paid</span>
+            {% elif purchase.paid_amount > 0 %}
+              <span class="badge bg-warning-lt">Partial</span>
+            {% else %}
+              <span class="badge bg-secondary-lt">Unpaid</span>
+            {% endif %}
+          </td>
+          <td><a href="{{ url_for('view_purchase_page', purchase_id=purchase.id) }}" class="btn btn-sm">Open</a></td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="9" class="text-muted text-center py-4">No purchases yet.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<form method="post" action="{{ url_for('delete_purchase') }}" id="deletePurchaseForm" class="d-none">
+  <input type="hidden" name="purchase_id" id="delete_purchase_id" />
+</form>
+
+<div class="modal modal-blur fade" id="payPurchaseModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <form method="post" action="{{ url_for('pay_purchase') }}">
+        <input type="hidden" name="purchase_id" id="pay_purchase_id" />
+        <div class="modal-header">
+          <h5 class="modal-title">Record Purchase Payment</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-2">
+            <label class="form-label">Purchase</label>
+            <input class="form-control" type="text" id="pay_purchase_number" disabled />
+          </div>
+          <div class="row g-2">
+            <div class="col-12 col-md-6">
+              <label class="form-label">Date</label>
+              <input class="form-control" type="date" name="payment_date" id="pay_purchase_date" required />
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">Amount</label>
+              <input class="form-control" type="number" step="0.01" min="0.01" name="amount" id="pay_purchase_amount" required />
+            </div>
+            <div class="col-12">
+              <label class="form-label">Payment Method</label>
+              <select class="form-select" name="payment_method_id" required>
+                <option value="">Select payment method</option>
+                {% for method in payment_methods %}
+                <option value="{{ method.id }}">{{ method.name }}{% if method.method_type %} ({{ method.method_type }}){% endif %}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Notes</label>
+              <textarea class="form-control" name="notes" rows="2"></textarea>
+            </div>
+          </div>
+          <div class="text-muted small mt-2">Amount defaults to outstanding amount.</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-sm btn-primary">Save Payment</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  const payBtn = document.getElementById('payPurchaseButton');
+  const editBtn = document.getElementById('editPurchaseButton');
+  const deleteBtn = document.getElementById('deletePurchaseButton');
+  const radios = document.querySelectorAll('input[name="selected_purchase"]');
+  const rows = document.querySelectorAll('#purchasesTable tbody tr.purchase-row');
+  const searchInput = document.getElementById('purchasesSearchInput');
+  const searchForm = document.getElementById('purchasesSearchForm');
+  const tableBody = document.querySelector('#purchasesTable tbody');
+
+  function getSelectedPurchase() {
+    return document.querySelector('input[name="selected_purchase"]:checked');
+  }
+
+  function updateActionsState() {
+    const hasSelection = !!getSelectedPurchase();
+    payBtn.disabled = !hasSelection;
+    editBtn.disabled = !hasSelection;
+    deleteBtn.disabled = !hasSelection;
+  }
+
+  function applyTableFilter() {
+    if (!searchInput || !tableBody) return;
+    const query = searchInput.value.trim().toLowerCase();
+    const dataRows = Array.from(tableBody.querySelectorAll('tr')).filter((row) => row.querySelector('input[name="selected_purchase"]'));
+
+    let visibleCount = 0;
+    dataRows.forEach((row) => {
+      const visible = !query || row.textContent.toLowerCase().includes(query);
+      row.style.display = visible ? '' : 'none';
+      if (visible) visibleCount += 1;
+    });
+
+    let emptyRow = document.getElementById('purchases-filter-empty-row');
+    if (visibleCount === 0 && dataRows.length > 0) {
+      if (!emptyRow) {
+        emptyRow = document.createElement('tr');
+        emptyRow.id = 'purchases-filter-empty-row';
+        emptyRow.innerHTML = '<td colspan="9" class="text-muted text-center py-4">No matching purchases.</td>';
+        tableBody.appendChild(emptyRow);
+      }
+    } else if (emptyRow) {
+      emptyRow.remove();
+    }
+
+    const selected = getSelectedPurchase();
+    if (selected && selected.closest('tr').style.display === 'none') selected.checked = false;
+    updateActionsState();
+  }
+
+  radios.forEach((radio) => radio.addEventListener('change', updateActionsState));
+
+  rows.forEach((row) => {
+    row.addEventListener('click', (event) => {
+      const radio = row.querySelector('input[name="selected_purchase"]');
+      if (!radio) return;
+      if (!['input', 'a', 'button'].includes(event.target.tagName.toLowerCase())) radio.checked = true;
+      updateActionsState();
+    });
+  });
+
+  if (searchInput) searchInput.addEventListener('input', applyTableFilter);
+  if (searchForm) {
+    searchForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      applyTableFilter();
+    });
+  }
+
+  payBtn.addEventListener('click', () => {
+    const selected = getSelectedPurchase();
+    if (!selected) {
+      alert('Select a purchase first.');
+      return;
+    }
+
+    const outstanding = parseFloat(selected.dataset.outstanding || '0');
+    if (outstanding <= 0) {
+      alert('This purchase is already fully paid.');
+      return;
+    }
+
+    document.getElementById('pay_purchase_id').value = selected.dataset.id;
+    document.getElementById('pay_purchase_number').value = selected.dataset.purchaseNumber;
+    document.getElementById('pay_purchase_amount').value = outstanding.toFixed(2);
+    document.getElementById('pay_purchase_date').value = new Date().toISOString().slice(0, 10);
+
+    new bootstrap.Modal(document.getElementById('payPurchaseModal')).show();
+  });
+
+  editBtn.addEventListener('click', () => {
+    const selected = getSelectedPurchase();
+    if (!selected) {
+      alert('Select a purchase first.');
+      return;
+    }
+    window.location.href = `/purchases/${selected.dataset.id}/edit`;
+  });
+
+  deleteBtn.addEventListener('click', () => {
+    const selected = getSelectedPurchase();
+    if (!selected) return;
+    showHtmlConfirm('Delete selected purchase?', () => {
+      document.getElementById('delete_purchase_id').value = selected.dataset.id;
+      document.getElementById('deletePurchaseForm').submit();
+    });
+  });
+
+  updateActionsState();
+  applyTableFilter();
+</script>
+{% endblock %}

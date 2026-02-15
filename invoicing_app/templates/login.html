@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Login | Celerity</title>
+    <link href="https://cdn.jsdelivr.net/npm/@tabler/core@1.4.0/dist/css/tabler.min.css" rel="stylesheet" />
+    <style>
+      :root {
+        --tblr-body-bg: #f4f6fa;
+      }
+
+      body {
+        background: var(--tblr-body-bg);
+      }
+
+      .auth-shell {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+      }
+
+      .auth-layout {
+        width: 100%;
+        max-width: 980px;
+        background: #fff;
+        border: 1px solid #e6e7e9;
+        border-radius: 0.75rem;
+        overflow: hidden;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        box-shadow: 0 0.25rem 1rem rgba(15, 23, 42, 0.06);
+      }
+
+      .auth-form {
+        padding: 2.5rem 2rem;
+      }
+
+      .auth-title {
+        margin-bottom: 0.25rem;
+        font-weight: 600;
+        color: #1e293b;
+      }
+
+      .auth-subtitle {
+        color: #6b7280;
+        margin-bottom: 1.5rem;
+      }
+
+      .auth-cover {
+        background: linear-gradient(145deg, #206bc4 0%, #3b82f6 100%);
+        color: #fff;
+        padding: 2.5rem 2rem;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+
+      .auth-brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 700;
+        font-size: 1.1rem;
+        margin-bottom: 1rem;
+      }
+
+      .auth-brand-icon {
+        width: 20px;
+        height: 20px;
+        stroke: currentColor;
+      }
+
+      .cover-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 0.75rem;
+      }
+
+      .cover-subtitle {
+        opacity: 0.9;
+        line-height: 1.5;
+      }
+
+      @media (max-width: 900px) {
+        .auth-layout {
+          grid-template-columns: 1fr;
+          max-width: 460px;
+        }
+
+        .auth-cover {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="auth-shell">
+      <div class="auth-layout">
+        <div class="auth-form">
+          <span class="auth-brand">
+            <svg xmlns="http://www.w3.org/2000/svg" class="auth-brand-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 21h18" />
+              <path d="M7 16V9" />
+              <path d="M12 16V5" />
+              <path d="M17 16v-3" />
+            </svg>
+            Celerity
+          </span>
+
+          <h2 class="auth-title">Sign in to your account</h2>
+          <p class="auth-subtitle">Welcome back. Enter your username and password to continue.</p>
+
+          {% if error_message %}
+          <div class="alert alert-danger py-2" role="alert">{{ error_message }}</div>
+          {% endif %}
+
+          <form method="post" action="{{ url_for('login') }}">
+            <div class="mb-3">
+              <label class="form-label">Username</label>
+              <input type="text" class="form-control" name="username" required autofocus />
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Password</label>
+              <input type="password" class="form-control" name="password" required />
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Sign In</button>
+          </form>
+        </div>
+
+        <div class="auth-cover">
+          <div class="cover-title">Celerity Finance</div>
+          <div class="cover-subtitle">
+            Manage invoices, purchases, payments, VAT reports, and financial insights in one simple workspace.
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

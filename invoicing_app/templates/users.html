@@ -1,0 +1,169 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header d-flex align-items-center justify-content-between gap-2 flex-wrap">
+    <div class="d-flex gap-2">
+      <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">Add User</button>
+      <button type="button" class="btn btn-sm" id="editUserButton" disabled>Edit User</button>
+      <button type="button" class="btn btn-sm" id="resetPasswordButton" disabled>Reset Password</button>
+      <button type="button" class="btn btn-sm btn-danger" id="deleteUserButton" disabled>Delete User</button>
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-vcenter card-table" id="usersTable">
+      <thead>
+        <tr>
+          <th style="width: 48px;"></th>
+          <th>Username</th>
+          <th>Full Name</th>
+          <th>Status</th>
+          <th>Created At</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for user in users %}
+        <tr class="user-row">
+          <td>
+            <input
+              type="radio"
+              name="selected_user"
+              value="{{ user.id }}"
+              data-id="{{ user.id }}"
+              data-username="{{ user.username }}"
+              data-full-name="{{ user.full_name or '' }}"
+              data-is-active="{{ 1 if user.is_active else 0 }}"
+            />
+          </td>
+          <td>{{ user.username }}</td>
+          <td>{{ user.full_name or '-' }}</td>
+          <td>
+            {% if user.is_active %}
+              <span class="badge bg-success-lt">Active</span>
+            {% else %}
+              <span class="badge bg-secondary-lt">Inactive</span>
+            {% endif %}
+          </td>
+          <td>{{ user.created_at }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="text-muted text-center py-4">No users yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="modal modal-blur fade" id="addUserModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <form method="post" action="{{ url_for('add_user') }}">
+        <div class="modal-header"><h5 class="modal-title">Add User</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body">
+          <div class="mb-2"><label class="form-label">Username</label><input class="form-control" name="username" required /></div>
+          <div class="mb-2"><label class="form-label">Full Name</label><input class="form-control" name="full_name" /></div>
+          <div class="mb-2"><label class="form-label">Password</label><input type="password" class="form-control" name="password" required /></div>
+          <div class="form-check"><input class="form-check-input" type="checkbox" id="add_is_active" name="is_active" checked /><label class="form-check-label" for="add_is_active">Active</label></div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-sm" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-sm btn-primary">Save</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal modal-blur fade" id="editUserModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <form method="post" action="{{ url_for('edit_user') }}">
+        <input type="hidden" name="user_id" id="edit_user_id" />
+        <div class="modal-header"><h5 class="modal-title">Edit User</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body">
+          <div class="mb-2"><label class="form-label">Username</label><input class="form-control" name="username" id="edit_username" required /></div>
+          <div class="mb-2"><label class="form-label">Full Name</label><input class="form-control" name="full_name" id="edit_full_name" /></div>
+          <div class="form-check"><input class="form-check-input" type="checkbox" id="edit_is_active" name="is_active" /><label class="form-check-label" for="edit_is_active">Active</label></div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-sm" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-sm btn-primary">Update</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal modal-blur fade" id="resetPasswordModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <form method="post" action="{{ url_for('reset_user_password') }}">
+        <input type="hidden" name="user_id" id="reset_user_id" />
+        <div class="modal-header"><h5 class="modal-title">Reset Password</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body">
+          <div class="mb-2"><label class="form-label">New Password</label><input type="password" class="form-control" name="new_password" minlength="4" required /></div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-sm" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-sm btn-primary">Reset</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<form method="post" action="{{ url_for('delete_user') }}" id="deleteUserForm" class="d-none">
+  <input type="hidden" name="user_id" id="delete_user_id" />
+</form>
+
+<script>
+  const editBtn = document.getElementById('editUserButton');
+  const resetBtn = document.getElementById('resetPasswordButton');
+  const deleteBtn = document.getElementById('deleteUserButton');
+  const rows = document.querySelectorAll('#usersTable tbody tr.user-row');
+
+  function getSelectedUser() {
+    return document.querySelector('input[name="selected_user"]:checked');
+  }
+
+  function updateActions() {
+    const hasSelection = !!getSelectedUser();
+    editBtn.disabled = !hasSelection;
+    resetBtn.disabled = !hasSelection;
+    deleteBtn.disabled = !hasSelection;
+  }
+
+  rows.forEach((row) => {
+    row.addEventListener('click', (event) => {
+      const radio = row.querySelector('input[name="selected_user"]');
+      if (!radio) return;
+      if (event.target.tagName.toLowerCase() !== 'input') radio.checked = true;
+      updateActions();
+    });
+  });
+
+  document.querySelectorAll('input[name="selected_user"]').forEach((input) => {
+    input.addEventListener('change', updateActions);
+  });
+
+  editBtn.addEventListener('click', () => {
+    const selected = getSelectedUser();
+    if (!selected) return;
+    document.getElementById('edit_user_id').value = selected.dataset.id;
+    document.getElementById('edit_username').value = selected.dataset.username;
+    document.getElementById('edit_full_name').value = selected.dataset.fullName;
+    document.getElementById('edit_is_active').checked = selected.dataset.isActive === '1';
+    new bootstrap.Modal(document.getElementById('editUserModal')).show();
+  });
+
+  resetBtn.addEventListener('click', () => {
+    const selected = getSelectedUser();
+    if (!selected) return;
+    document.getElementById('reset_user_id').value = selected.dataset.id;
+    new bootstrap.Modal(document.getElementById('resetPasswordModal')).show();
+  });
+
+  deleteBtn.addEventListener('click', () => {
+    const selected = getSelectedUser();
+    if (!selected) return;
+    showHtmlConfirm('Delete selected user?', () => {
+      document.getElementById('delete_user_id').value = selected.dataset.id;
+      document.getElementById('deleteUserForm').submit();
+    });
+  });
+
+  updateActions();
+</script>
+{% endblock %}

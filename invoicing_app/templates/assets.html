@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card mb-3">
+  <div class="card-header d-flex justify-content-between align-items-center gap-2 flex-wrap">
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('purchases_page') }}" class="btn btn-sm">Back to Purcheases</a>
+    </div>
+    <form method="get" action="{{ url_for('assets_page') }}" class="d-flex" style="max-width: 280px; width: 100%;">
+      <div class="input-group input-group-sm">
+        <input type="text" class="form-control" name="q" placeholder="Search assets..." value="{{ search_query or '' }}" />
+        <button type="submit" class="btn btn-sm">Search</button>
+      </div>
+    </form>
+  </div>
+  <div class="card-body">
+    <div class="row g-2">
+      <div class="col-12 col-md-6">
+        <div class="border rounded p-3 bg-white">
+          <div class="text-muted">Total Available Quantity</div>
+          <div class="h3 mb-0">{{ '%.2f'|format(total_available_qty) }}</div>
+        </div>
+      </div>
+      <div class="col-12 col-md-6">
+        <div class="border rounded p-3 bg-white">
+          <div class="text-muted">Estimated Stock Value</div>
+          <div class="h3 mb-0">{{ '%.2f'|format(total_stock_value) }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-vcenter card-table">
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th>Unit</th>
+          <th>Purchased Qty</th>
+          <th>Sold Qty</th>
+          <th>Available Qty</th>
+          <th>Avg Purchase Price</th>
+          <th>Stock Value</th>
+          <th>Last Purchase</th>
+          <th>Last Sale</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in assets %}
+        <tr>
+          <td>{{ row.item_name }}</td>
+          <td>{{ row.unit or '-' }}</td>
+          <td>{{ '%.2f'|format(row.purchased_qty) }}</td>
+          <td>{{ '%.2f'|format(row.sold_qty) }}</td>
+          <td class="{% if row.available_qty < 0 %}text-danger fw-bold{% endif %}">{{ '%.2f'|format(row.available_qty) }}</td>
+          <td>{{ '%.2f'|format(row.average_cost) }}</td>
+          <td class="{% if row.stock_value < 0 %}text-danger fw-bold{% endif %}">{{ '%.2f'|format(row.stock_value) }}</td>
+          <td>{{ row.last_purchase_date or '-' }}</td>
+          <td>{{ row.last_sale_date or '-' }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="9" class="text-muted text-center py-4">No asset records yet.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

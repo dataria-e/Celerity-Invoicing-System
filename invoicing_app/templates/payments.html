@@ -1,0 +1,282 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row g-3">
+  <div class="col-12 col-xl-6">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Payment Methods</span>
+        <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addMethodModal">Add Method</button>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-vcenter card-table" id="methodsTable">
+          <thead><tr><th>Name</th><th>Type</th><th>Identifier</th><th>Details</th><th style="width:120px;">Actions</th></tr></thead>
+          <tbody>
+            {% for method in methods %}
+            <tr>
+              <td>{{ method.name }}</td>
+              <td>{{ method.method_type }}</td>
+              <td>{{ method.account_identifier or '-' }}</td>
+              <td>{{ method.details or '-' }}</td>
+              <td>
+                <button class="btn btn-sm" onclick='openEditMethod({{ method.id }}, {{ method.name|tojson }}, {{ method.method_type|tojson }}, {{ (method.account_identifier or "")|tojson }}, {{ (method.details or "")|tojson }})'>Edit</button>
+                <form method="post" action="{{ url_for('delete_payment_method') }}" class="d-inline">
+                  <input type="hidden" name="method_id" value="{{ method.id }}" />
+                  <button class="btn btn-sm btn-danger" onclick='return showHtmlConfirmSubmit(event, "Delete method?")'>Del</button>
+                </form>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="text-muted text-center py-4">No payment methods.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-xl-6">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Currencies</span>
+        <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addCurrencyModal">Add Currency</button>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-vcenter card-table" id="currenciesTable">
+          <thead><tr><th>Code</th><th>Name</th><th>Symbol</th><th>Crypto</th><th style="width:120px;">Actions</th></tr></thead>
+          <tbody>
+            {% for currency in currencies %}
+            <tr>
+              <td>{{ currency.code }}</td>
+              <td>{{ currency.name }}</td>
+              <td>{{ currency.symbol or '-' }}</td>
+              <td>{{ 'Yes' if currency.is_crypto else 'No' }}</td>
+              <td>
+                <button class="btn btn-sm" onclick='openEditCurrency({{ currency.id }}, {{ currency.code|tojson }}, {{ currency.name|tojson }}, {{ (currency.symbol or "")|tojson }}, {{ 1 if currency.is_crypto else 0 }})'>Edit</button>
+                <form method="post" action="{{ url_for('delete_payment_currency') }}" class="d-inline">
+                  <input type="hidden" name="currency_id" value="{{ currency.id }}" />
+                  <button class="btn btn-sm btn-danger" onclick='return showHtmlConfirmSubmit(event, "Delete currency?")'>Del</button>
+                </form>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="text-muted text-center py-4">No currencies.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Transactions</span>
+        <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addTransactionModal">Add Transaction</button>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-vcenter card-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Type</th>
+              <th>Reference</th>
+              <th>Amount</th>
+              <th>Currency</th>
+              <th>Method</th>
+              <th>Notes</th>
+              <th style="width:90px;">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for tx in transactions %}
+            <tr>
+              <td>{{ tx.transaction_date }}</td>
+              <td>{{ tx.transaction_type }}</td>
+              <td>{{ (tx.reference_type or '-') ~ (' #' ~ tx.reference_id if tx.reference_id else '') }}</td>
+              <td>{{ '%.2f'|format(tx.amount) }}</td>
+              <td>{{ tx.currency_code }}</td>
+              <td>{{ tx.method_name or '-' }}</td>
+              <td>{{ tx.notes or '-' }}</td>
+              <td>
+                <form method="post" action="{{ url_for('delete_payment_transaction') }}">
+                  <input type="hidden" name="transaction_id" value="{{ tx.id }}" />
+                  <button class="btn btn-sm btn-danger" onclick='return showHtmlConfirmSubmit(event, "Delete transaction?")'>Del</button>
+                </form>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="8" class="text-muted text-center py-4">No transactions yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal modal-blur fade" id="addMethodModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered"><div class="modal-content"><form method="post" action="{{ url_for('add_payment_method') }}">
+    <div class="modal-header"><h5 class="modal-title">Add Payment Method</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <div class="mb-2"><label class="form-label">Name</label><input class="form-control" name="name" required></div>
+      <div class="mb-2"><label class="form-label">Type</label><input class="form-control" name="method_type" placeholder="Bank, Card, PayPal, Gateway" required></div>
+      <div class="mb-2"><label class="form-label">Account/Identifier</label><input class="form-control" name="account_identifier"></div>
+      <div class="mb-2"><label class="form-label">Details</label><textarea class="form-control" name="details" rows="2"></textarea></div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-sm" data-bs-dismiss="modal">Cancel</button><button class="btn btn-sm btn-primary">Save</button></div>
+  </form></div></div>
+</div>
+
+<div class="modal modal-blur fade" id="editMethodModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered"><div class="modal-content"><form method="post" action="{{ url_for('edit_payment_method') }}">
+    <input type="hidden" name="method_id" id="edit_method_id" />
+    <div class="modal-header"><h5 class="modal-title">Edit Payment Method</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <div class="mb-2"><label class="form-label">Name</label><input class="form-control" name="name" id="edit_method_name" required></div>
+      <div class="mb-2"><label class="form-label">Type</label><input class="form-control" name="method_type" id="edit_method_type" required></div>
+      <div class="mb-2"><label class="form-label">Account/Identifier</label><input class="form-control" name="account_identifier" id="edit_method_identifier"></div>
+      <div class="mb-2"><label class="form-label">Details</label><textarea class="form-control" name="details" id="edit_method_details" rows="2"></textarea></div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-sm" data-bs-dismiss="modal">Cancel</button><button class="btn btn-sm btn-primary">Update</button></div>
+  </form></div></div>
+</div>
+
+<div class="modal modal-blur fade" id="addCurrencyModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered"><div class="modal-content"><form method="post" action="{{ url_for('add_payment_currency') }}">
+    <div class="modal-header"><h5 class="modal-title">Add Currency</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <div class="row g-2">
+        <div class="col-4"><label class="form-label">Code</label><input class="form-control" name="code" maxlength="10" required></div>
+        <div class="col-8"><label class="form-label">Name</label><input class="form-control" name="name" required></div>
+      </div>
+      <div class="mb-2 mt-2"><label class="form-label">Symbol</label><input class="form-control" name="symbol"></div>
+      <div class="form-check"><input class="form-check-input" type="checkbox" name="is_crypto" id="add_is_crypto"><label class="form-check-label" for="add_is_crypto">Cryptocurrency</label></div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-sm" data-bs-dismiss="modal">Cancel</button><button class="btn btn-sm btn-primary">Save</button></div>
+  </form></div></div>
+</div>
+
+<div class="modal modal-blur fade" id="editCurrencyModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered"><div class="modal-content"><form method="post" action="{{ url_for('edit_payment_currency') }}">
+    <input type="hidden" name="currency_id" id="edit_currency_id" />
+    <div class="modal-header"><h5 class="modal-title">Edit Currency</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <div class="row g-2">
+        <div class="col-4"><label class="form-label">Code</label><input class="form-control" name="code" id="edit_currency_code" maxlength="10" required></div>
+        <div class="col-8"><label class="form-label">Name</label><input class="form-control" name="name" id="edit_currency_name" required></div>
+      </div>
+      <div class="mb-2 mt-2"><label class="form-label">Symbol</label><input class="form-control" name="symbol" id="edit_currency_symbol"></div>
+      <div class="form-check"><input class="form-check-input" type="checkbox" name="is_crypto" id="edit_is_crypto"><label class="form-check-label" for="edit_is_crypto">Cryptocurrency</label></div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-sm" data-bs-dismiss="modal">Cancel</button><button class="btn btn-sm btn-primary">Update</button></div>
+  </form></div></div>
+</div>
+
+<div class="modal modal-blur fade" id="addTransactionModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered"><div class="modal-content"><form method="post" action="{{ url_for('add_payment_transaction') }}">
+    <div class="modal-header"><h5 class="modal-title">Add Transaction</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <div class="row g-2">
+        <div class="col-6"><label class="form-label">Date</label><input class="form-control" type="date" name="transaction_date" required></div>
+        <div class="col-6"><label class="form-label">Type</label>
+          <select class="form-select" name="transaction_type" id="tx_type" required>
+            <option value="purchase_payment">Purchase Payment</option>
+            <option value="invoice_receipt">Invoice Receipt</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="col-6"><label class="form-label">Reference Type</label>
+          <select class="form-select" name="reference_type" id="tx_ref_type">
+            <option value="">None</option>
+            <option value="purchase">Purchase</option>
+            <option value="invoice">Invoice</option>
+          </select>
+        </div>
+        <div class="col-6"><label class="form-label">Reference</label>
+          <select class="form-select" name="reference_id" id="tx_ref_id">
+            <option value="">Select reference</option>
+            {% for p in purchases %}<option value="{{ p.id }}" data-ref-type="purchase" data-total="{{ p.total }}">{{ p.purchase_number }} - {{ p.purchase_date }} ({{ '%.2f'|format(p.total) }})</option>{% endfor %}
+            {% for inv in invoices %}<option value="{{ inv.id }}" data-ref-type="invoice" data-total="{{ inv.total }}">{{ inv.invoice_number }} - {{ inv.invoice_date }} ({{ '%.2f'|format(inv.total) }})</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-6"><label class="form-label">Amount</label><input class="form-control" type="number" step="0.01" min="0" name="amount" id="tx_amount" required></div>
+        <div class="col-6"><label class="form-label">Currency</label>
+          <select class="form-select" name="currency_code" required>
+            {% for c in currencies %}<option value="{{ c.code }}">{{ c.code }} - {{ c.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-12"><label class="form-label">Method</label>
+          <select class="form-select" name="method_id">
+            <option value="">Select method</option>
+            {% for m in methods %}<option value="{{ m.id }}">{{ m.name }} ({{ m.method_type }})</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-12"><label class="form-label">Notes</label><textarea class="form-control" name="notes" rows="2"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-sm" data-bs-dismiss="modal">Cancel</button><button class="btn btn-sm btn-primary">Save</button></div>
+  </form></div></div>
+</div>
+
+<script>
+  function openEditMethod(id, name, type, identifier, details) {
+    document.getElementById('edit_method_id').value = id;
+    document.getElementById('edit_method_name').value = name;
+    document.getElementById('edit_method_type').value = type;
+    document.getElementById('edit_method_identifier').value = identifier;
+    document.getElementById('edit_method_details').value = details;
+    new bootstrap.Modal(document.getElementById('editMethodModal')).show();
+  }
+
+  function openEditCurrency(id, code, name, symbol, isCrypto) {
+    document.getElementById('edit_currency_id').value = id;
+    document.getElementById('edit_currency_code').value = code;
+    document.getElementById('edit_currency_name').value = name;
+    document.getElementById('edit_currency_symbol').value = symbol;
+    document.getElementById('edit_is_crypto').checked = !!isCrypto;
+    new bootstrap.Modal(document.getElementById('editCurrencyModal')).show();
+  }
+
+  const txType = document.getElementById('tx_type');
+  const txRefType = document.getElementById('tx_ref_type');
+  const txRefId = document.getElementById('tx_ref_id');
+  const txAmount = document.getElementById('tx_amount');
+
+  function syncRefTypeFromTransactionType() {
+    if (!txType || !txRefType) return;
+    if (txType.value === 'purchase_payment') txRefType.value = 'purchase';
+    else if (txType.value === 'invoice_receipt') txRefType.value = 'invoice';
+  }
+
+  function filterReferences() {
+    const selectedType = txRefType.value;
+    Array.from(txRefId.options).forEach((opt, idx) => {
+      if (idx === 0) {
+        opt.hidden = false;
+        return;
+      }
+      const match = !selectedType || opt.dataset.refType === selectedType;
+      opt.hidden = !match;
+    });
+    txRefId.value = '';
+  }
+
+  function setAmountFromReference() {
+    const selected = txRefId.options[txRefId.selectedIndex];
+    if (!selected || !selected.value) return;
+    if (selected.dataset.total) txAmount.value = selected.dataset.total;
+  }
+
+  if (txType && txRefType) {
+    txType.addEventListener('change', () => {
+      syncRefTypeFromTransactionType();
+      filterReferences();
+    });
+    txRefType.addEventListener('change', filterReferences);
+    txRefId.addEventListener('change', setAmountFromReference);
+    syncRefTypeFromTransactionType();
+    filterReferences();
+  }
+</script>
+{% endblock %}

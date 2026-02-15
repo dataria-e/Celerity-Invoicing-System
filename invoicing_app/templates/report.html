@@ -1,0 +1,279 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+  .report-page {
+    overflow-x: hidden;
+  }
+
+  .report-tabs {
+    background: var(--tblr-bg-surface);
+    border: 1px solid var(--tblr-border-color);
+    border-radius: var(--tblr-border-radius);
+    padding: 0.5rem;
+  }
+
+  .report-tabs .nav-link {
+    border: 1px solid transparent;
+    color: var(--tblr-body-color);
+  }
+
+  .report-tabs .nav-link.active {
+    background: var(--tblr-primary);
+    color: var(--tblr-primary-fg);
+    border-color: var(--tblr-primary);
+  }
+
+  .report-chart-wrap {
+    width: 100%;
+    overflow: hidden;
+  }
+
+  .report-chart-wrap canvas {
+    display: block;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+</style>
+
+<div class="report-page">
+<ul class="nav nav-tabs mb-3 report-tabs" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#summary-tab" type="button" role="tab">Summary</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#vat-return-tab" type="button" role="tab">VAT Return</button>
+  </li>
+</ul>
+
+<div class="tab-content">
+  <div class="tab-pane show active" id="summary-tab" role="tabpanel">
+<div class="row g-3 mb-3">
+  <div class="col-6 col-xl-3">
+    <div class="card">
+      <div class="card-body">
+        <div class="text-secondary small">Sold</div>
+        <div class="h2 mb-0">{{ '%.2f'|format(sold_total) }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="card">
+      <div class="card-body">
+        <div class="text-secondary small">Bought</div>
+        <div class="h2 mb-0">{{ '%.2f'|format(bought_total) }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="card">
+      <div class="card-body">
+        <div class="text-secondary small">Expenses</div>
+        <div class="h2 mb-0">{{ '%.2f'|format(expenses_total) }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="card">
+      <div class="card-body">
+        <div class="text-secondary small">Benefit</div>
+        <div class="h2 mb-0 text-success">{{ '%.2f'|format(benefit) }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-6 col-xl-3">
+    <div class="card">
+      <div class="card-body">
+        <div class="text-secondary small">Loss</div>
+        <div class="h2 mb-0 text-danger">{{ '%.2f'|format(loss) }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="card">
+      <div class="card-body">
+        <div class="text-secondary small">Debt</div>
+        <div class="h2 mb-0">{{ '%.2f'|format(debt) }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="card">
+      <div class="card-body">
+        <div class="text-secondary small">Should Receive</div>
+        <div class="h2 mb-0">{{ '%.2f'|format(should_receive) }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="card">
+      <div class="card-body">
+        <div class="text-secondary small">I Owe</div>
+        <div class="h2 mb-0">{{ '%.2f'|format(i_owe) }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="card">
+      <div class="card-body">
+        <div class="text-secondary small">Received VAT</div>
+        <div class="h2 mb-0">{{ '%.2f'|format(received_vat) }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="card">
+      <div class="card-body">
+        <div class="text-secondary small">Paid VAT</div>
+        <div class="h2 mb-0">{{ '%.2f'|format(paid_vat) }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">Monthly Turnover Statistics</div>
+      <div class="card-body report-chart-wrap">
+        <canvas id="monthlyTurnoverChart" height="95"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">Yearly Turnover Statistics</div>
+      <div class="card-body report-chart-wrap">
+        <canvas id="yearlyTurnoverChart" height="95"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+  </div>
+
+  <div class="tab-pane" id="vat-return-tab" role="tabpanel">
+    <div class="card mb-3">
+      <div class="card-header">3-Month VAT Return Summary (Quarterly)</div>
+      <div class="table-responsive">
+        <table class="table table-vcenter card-table">
+          <thead>
+            <tr>
+              <th>Quarter</th>
+              <th>Received VAT (Output)</th>
+              <th>Paid VAT (Input)</th>
+              <th>Net VAT for Tax Return</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in vat_quarterly %}
+            <tr>
+              <td>{{ row.quarter }}</td>
+              <td>{{ '%.2f'|format(row.output_vat) }}</td>
+              <td>{{ '%.2f'|format(row.input_vat) }}</td>
+              <td class="{% if row.net_vat >= 0 %}text-danger{% else %}text-success{% endif %}">
+                {{ '%.2f'|format(row.net_vat) }}
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" class="text-center text-muted py-4">No VAT data available.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">All VAT Entries</div>
+      <div class="table-responsive">
+        <table class="table table-vcenter card-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Quarter</th>
+              <th>Type</th>
+              <th>Reference</th>
+              <th>Party</th>
+              <th>Total</th>
+              <th>VAT</th>
+              <th>Settled</th>
+              <th>Recognized VAT</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for entry in vat_entries %}
+            <tr>
+              <td>{{ entry.date }}</td>
+              <td>{{ entry.quarter }}</td>
+              <td>{{ entry.entry_type }}</td>
+              <td>{{ entry.reference_number }}</td>
+              <td>{{ entry.party_name }}</td>
+              <td>{{ '%.2f'|format(entry.total_amount) }}</td>
+              <td>{{ '%.2f'|format(entry.vat_amount) }}</td>
+              <td>{{ '%.2f'|format(entry.settled_amount) }}</td>
+              <td>{{ '%.2f'|format(entry.recognized_vat) }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="9" class="text-center text-muted py-4">No VAT entries available.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const monthlyLabels = {{ monthly_labels|safe }};
+  const monthlySold = {{ monthly_sold|safe }};
+  const monthlyBought = {{ monthly_bought|safe }};
+  const monthlyExpenses = {{ monthly_expenses|safe }};
+  const monthlyTurnover = {{ monthly_turnover|safe }};
+
+  const yearlyLabels = {{ yearly_labels|safe }};
+  const yearlySold = {{ yearly_sold|safe }};
+  const yearlyBought = {{ yearly_bought|safe }};
+  const yearlyExpenses = {{ yearly_expenses|safe }};
+  const yearlyTurnover = {{ yearly_turnover|safe }};
+
+  const sharedOptions = {
+    responsive: true,
+    maintainAspectRatio: true,
+    scales: {
+      y: {
+        beginAtZero: true
+      }
+    }
+  };
+
+  new Chart(document.getElementById('monthlyTurnoverChart'), {
+    type: 'line',
+    data: {
+      labels: monthlyLabels,
+      datasets: [
+        { label: 'Sold', data: monthlySold, borderColor: '#206bc4', backgroundColor: 'rgba(32,107,196,0.15)', tension: 0.25 },
+        { label: 'Bought', data: monthlyBought, borderColor: '#f59f00', backgroundColor: 'rgba(245,159,0,0.15)', tension: 0.25 },
+        { label: 'Expenses', data: monthlyExpenses, borderColor: '#d63939', backgroundColor: 'rgba(214,57,57,0.15)', tension: 0.25 },
+        { label: 'Turnover', data: monthlyTurnover, borderColor: '#2fb344', backgroundColor: 'rgba(47,179,68,0.15)', tension: 0.25 }
+      ]
+    },
+    options: sharedOptions
+  });
+
+  new Chart(document.getElementById('yearlyTurnoverChart'), {
+    type: 'bar',
+    data: {
+      labels: yearlyLabels,
+      datasets: [
+        { label: 'Sold', data: yearlySold, backgroundColor: 'rgba(32,107,196,0.8)' },
+        { label: 'Bought', data: yearlyBought, backgroundColor: 'rgba(245,159,0,0.8)' },
+        { label: 'Expenses', data: yearlyExpenses, backgroundColor: 'rgba(214,57,57,0.8)' },
+        { label: 'Turnover', data: yearlyTurnover, backgroundColor: 'rgba(47,179,68,0.8)' }
+      ]
+    },
+    options: sharedOptions
+  });
+</script>
+{% endblock %}
